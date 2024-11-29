@@ -1,0 +1,64 @@
+package com.oraclealura.Literatura.service;
+
+
+import com.oraclealura.Literatura.model.Autor;
+import com.oraclealura.Literatura.model.Libro;
+import com.oraclealura.Literatura.repository.AutorRepository;
+import com.oraclealura.Literatura.repository.LibroRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
+
+@Service
+public class LibroService {
+
+    @Autowired
+    private AutorRepository autorRepository;
+    @Autowired
+    private LibroRepository libroRepository;
+
+
+    @Autowired
+    public LibroService(AutorRepository autorRepository, LibroRepository libroRepository) {
+        this.autorRepository = autorRepository;
+        this.libroRepository = libroRepository;
+    }
+
+    @Transactional
+    public String verificarYGuardarLibro(Libro libro) {
+        if (libro == null) {
+            return "";
+        }
+        // 1. Verificar si el libro ya existe por su título:
+        Optional<Libro> libroExistente = libroRepository.findByTitulo(libro.getTitulo());
+
+        if (libroExistente.isPresent()) {
+            return "El libro ya está en la base de datos.";
+        }
+
+        // 2. Verificar si el autor ya existe por su nombre:
+        try {
+            Optional<Autor> autorExistente = autorRepository.findByNombre(libro.getAutor().getNombre());
+
+            Autor autor;
+            if (autorExistente.isPresent()) {
+                autor = autorExistente.get();
+            } else {
+                // Si el autor no existe, se guarda uno nuevo
+                autor = libro.getAutor();
+                autorRepository.save(autor);
+            }
+            libro.setAutor(autor);
+            // 3. Guardar el nuevo libro con el autor ya verificado:
+            libroRepository.save(libro);
+
+            return "Libro y autor guardados correctamente.";
+        } catch (DataAccessException e) {
+            e.printStackTrace();
+            return "Error al guardar el libro: " + e.getMessage();
+        }
+    }
+}
